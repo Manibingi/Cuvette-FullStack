@@ -3,6 +3,7 @@ const app = express();
 const dotenv = require("dotenv");
 const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
+const cors = require("cors");
 const userRoute = require("./routes/user");
 const jobRoute = require("./routes/job");
 
@@ -10,6 +11,7 @@ dotenv.config();
 
 const PORT = process.env.PORT || 3000;
 
+app.use(cors());
 app.use(express.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use("/api/user", userRoute);
