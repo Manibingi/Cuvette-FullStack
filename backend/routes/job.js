@@ -7,17 +7,35 @@ dotenv.config();
 
 router.get("/", async (req, res) => {
   const { limit, offset, salary, name } = req.query;
+
+  const query = {};
+  if (salary) {
+    query.salary = { $gte: salary, $lte: salary };
+  }
+  if (name) {
+    query.companyName = { $regex: name, $options: "i" };
+  }
+  const jobs = await Job.find(query)
+    .skip(offset || 0)
+    .limit(limit || 50);
+  const count = await Job.countDocuments(query);
   // const jobs = await Job.find().skip(offset).limit(limit);
   // const jobs = await Job.find({ salary: { $gte: 10000, $lte: 15000 } })
   //   .skip(offset)
   //   .limit(limit);
   // const jobs = await Job.find({ salary }).skip(offset).limit(limit);
-  const jobs = await Job.find({
-    companyName: { $regex: name, $options: "i" },
-  })
-    .skip(offset)
-    .limit(limit);
-  res.status(200).json(jobs);
+  // const jobs = await Job.find({
+  //   companyName: { $regex: name, $options: "i" },
+  // })
+  //   .skip(offset)
+  //   .limit(limit);
+  // const jobs = await Job.find(
+  //   { companyName: { $regex: name || "", $options: "i" } },
+  //   { salary: salary || "" }
+  // )
+  //   .skip(offset || 0)
+  //   .limit(limit || 10);
+  res.status(200).json({ jobs, count });
 });
 
 router.get("/:id", async (req, res) => {
@@ -48,17 +66,48 @@ router.delete("/:id", authMiddleware, async (req, res) => {
 });
 
 router.post("/", authMiddleware, async (req, res) => {
-  const { companyName, jobPosition, salary, jobType } = req.body;
-  if (!companyName || !jobPosition || !salary || !jobType) {
+  const {
+    companyName,
+    logoUrl,
+    jobPosition,
+    salary,
+    jobType,
+    remote,
+    location,
+    jobDescription,
+    aboutCompany,
+    skillsRequired,
+    information,
+  } = req.body;
+  if (
+    !companyName ||
+    !logoUrl ||
+    !jobPosition ||
+    !salary ||
+    !jobType ||
+    !remote ||
+    !location ||
+    !jobDescription ||
+    !aboutCompany ||
+    !skillsRequired ||
+    !information
+  ) {
     return res.status(400).json({ message: "Missing required fields" });
   }
   try {
     const user = req.user;
     const job = await Job.create({
       companyName,
+      logoUrl,
       jobPosition,
       salary,
       jobType,
+      remote,
+      location,
+      jobDescription,
+      aboutCompany,
+      skillsRequired,
+      information,
       user: user.id,
     });
     res.status(200).json(job);
@@ -70,7 +119,19 @@ router.post("/", authMiddleware, async (req, res) => {
 
 router.put("/:id", authMiddleware, async (req, res) => {
   const { id } = req.params;
-  const { companyName, jobPosition, salary, jobType } = req.body;
+  const {
+    companyName,
+    logoUrl,
+    jobPosition,
+    salary,
+    jobType,
+    remote,
+    location,
+    jobDescription,
+    aboutCompany,
+    skillsRequired,
+    information,
+  } = req.body;
   const job = await Job.findById(id);
   if (!job) {
     return res.status(400).json({ message: "Job not foumd" });
@@ -85,9 +146,16 @@ router.put("/:id", authMiddleware, async (req, res) => {
   try {
     await Job.findByIdAndUpdate(id, {
       companyName,
+      logoUrl,
       jobPosition,
       salary,
       jobType,
+      remote,
+      location,
+      jobDescription,
+      aboutCompany,
+      skillsRequired,
+      information,
     });
     res.status(200).json({ message: "Job updated" });
   } catch (err) {
