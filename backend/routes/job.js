@@ -2,44 +2,54 @@ const express = require("express");
 const router = express.Router();
 const Job = require("../schema/job.schema");
 const authMiddleware = require("../middleware/auth");
+// const errorHandler = require("./middleware/errorHandler");
 const dotenv = require("dotenv");
 dotenv.config();
 
 router.get("/", async (req, res) => {
-  const { limit, offset, salary, name } = req.query;
+  setTimeout(async () => {
+    const { limit, offset, salary, name, skillsRequired } = req.query;
 
-  const query = {};
-  if (salary) {
-    query.salary = { $gte: salary, $lte: salary };
-  }
-  if (name) {
-    query.companyName = { $regex: name, $options: "i" };
-  }
-  const jobs = await Job.find(query)
-    .skip(offset || 0)
-    .limit(limit || 50);
-  const count = await Job.countDocuments(query);
-  // const jobs = await Job.find().skip(offset).limit(limit);
-  // const jobs = await Job.find({ salary: { $gte: 10000, $lte: 15000 } })
-  //   .skip(offset)
-  //   .limit(limit);
-  // const jobs = await Job.find({ salary }).skip(offset).limit(limit);
-  // const jobs = await Job.find({
-  //   companyName: { $regex: name, $options: "i" },
-  // })
-  //   .skip(offset)
-  //   .limit(limit);
-  // const jobs = await Job.find(
-  //   { companyName: { $regex: name || "", $options: "i" } },
-  //   { salary: salary || "" }
-  // )
-  //   .skip(offset || 0)
-  //   .limit(limit || 10);
-  res.status(200).json({ jobs, count });
+    const query = {};
+    if (salary) {
+      query.salary = { $gte: salary, $lte: salary };
+    }
+    if (name) {
+      query.skillsRequired = { $regex: name, $options: "i" };
+    }
+    if (skillsRequired) {
+      // all skills must be in the skills array
+      query.skillsRequired = { $all: skillsRequired.split(",") };
+      // Atleast one skill must be in the skills array
+      query.skillsRequired = { $in: skillsRequired.split(",") };
+    }
+    const jobs = await Job.find(query)
+      .skip(offset || 0)
+      .limit(limit || 50);
+    const count = await Job.countDocuments(query);
+    // const jobs = await Job.find().skip(offset).limit(limit);
+    // const jobs = await Job.find({ salary: { $gte: 10000, $lte: 15000 } })
+    //   .skip(offset)
+    //   .limit(limit);
+    // const jobs = await Job.find({ salary }).skip(offset).limit(limit);
+    // const jobs = await Job.find({
+    //   companyName: { $regex: name, $options: "i" },
+    // })
+    //   .skip(offset)
+    //   .limit(limit);
+    // const jobs = await Job.find(
+    //   { companyName: { $regex: name || "", $options: "i" } },
+    //   { salary: salary || "" }
+    // )
+    //   .skip(offset || 0)
+    //   .limit(limit || 10);
+    res.status(200).json({ jobs, count });
+  }, 5000);
 });
 
 router.get("/:id", async (req, res) => {
   const { id } = req.params;
+  console.log(id);
   const job = await Job.findById(id);
   if (!job) {
     return res.status(400).json({ message: "Job not found" });
@@ -65,6 +75,25 @@ router.delete("/:id", authMiddleware, async (req, res) => {
   res.status(200).json({ message: "Job deleted successfully" });
 });
 
+router.get("/api/jobs/:skillsRequired", async (req, res, next) => {
+  try {
+    const skills = req.params.skillsRequired;
+    const parsedSkills = JSON.parse(skills);
+    const lowercaseSkills = parsedSkills.map((skill) => skill.toLowerCase());
+    console.log(lowercaseSkills);
+    const jobs = await Job.find({ skills: { $in: lowercaseSkills } });
+
+    res.send({
+      status: "SUCCESS",
+      message: "Jobs fetched successfully",
+      data: jobs,
+    });
+  } catch (err) {
+    console.log(err);
+    next(new Error("Something went wrong! Please try after some time."));
+  }
+});
+
 router.post("/", authMiddleware, async (req, res) => {
   const {
     companyName,
@@ -77,7 +106,6 @@ router.post("/", authMiddleware, async (req, res) => {
     jobDescription,
     aboutCompany,
     skillsRequired,
-    information,
   } = req.body;
   if (
     !companyName ||
@@ -89,13 +117,16 @@ router.post("/", authMiddleware, async (req, res) => {
     !location ||
     !jobDescription ||
     !aboutCompany ||
-    !skillsRequired ||
-    !information
+    !skillsRequired
   ) {
     return res.status(400).json({ message: "Missing required fields" });
   }
+  const skillsArray = Array.isArray(skillsRequired)
+    ? skillsRequired.map((skill) => skill.trim())
+    : skillsRequired.split(",").map((skill) => skill.trim());
   try {
     const user = req.user;
+    console.log(user);
     const job = await Job.create({
       companyName,
       logoUrl,
@@ -106,8 +137,7 @@ router.post("/", authMiddleware, async (req, res) => {
       location,
       jobDescription,
       aboutCompany,
-      skillsRequired,
-      information,
+      skillsRequired: skillsArray,
       user: user.id,
     });
     res.status(200).json(job);
@@ -130,7 +160,7 @@ router.put("/:id", authMiddleware, async (req, res) => {
     jobDescription,
     aboutCompany,
     skillsRequired,
-    information,
+    date,
   } = req.body;
   const job = await Job.findById(id);
   if (!job) {
@@ -155,7 +185,6 @@ router.put("/:id", authMiddleware, async (req, res) => {
       jobDescription,
       aboutCompany,
       skillsRequired,
-      information,
     });
     res.status(200).json({ message: "Job updated" });
   } catch (err) {
