@@ -3,7 +3,7 @@ import "./App.css";
 import Register from "./components/register/Register";
 import Login from "./components/login/Login";
 import Home from "./components/home/Home";
-import NewJob from "./components/NewJob/NewJob";
+import NewJob from "./components/NewJob/NewJob.jsx";
 import JobDesc from "./components/jobDesc/JobDesc";
 
 function App() {
